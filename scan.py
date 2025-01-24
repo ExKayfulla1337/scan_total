@@ -1,8 +1,9 @@
-# scan.py
-from processor import process_pdf_image, visualize_all_images
-from config import INPUT_DIR, OUTPUT_PNG_DIR, OUTPUT_JSON_DIR, INPUT_PNG_DIR
+from processor import process_pdf_image
+from config import INPUT_DIR, OUTPUT_PNG_DIR, OUTPUT_JSON_DIR, INPUT_PNG_DIR, MIN_AREA, MAX_AREA
 import os
 from pdf2image import convert_from_path
+import json
+
 
 # Проверяем созданы ли папочки
 os.makedirs(OUTPUT_PNG_DIR, exist_ok=True)
@@ -25,20 +26,23 @@ for pdf_file in os.listdir(INPUT_DIR):
         pages = convert_from_path(pdf_path, dpi=150)
 
         # Обработка каждой pdf
+        pdf_json_data = []  # Список для хранения JSON данных каждого файла
         for page_num, page in enumerate(pages, start=1):
             page_filename = f"{page_num}_{os.path.splitext(pdf_file)[0]}.png"  # Сохранение как png
             page_image_path = os.path.join(INPUT_PNG_DIR, page_filename)
             page.save(page_image_path, 'PNG')  # сохранение как png
 
             # Обработка и разметка pdf (по картинкам)
-            colored_image = process_pdf_image(page_image_path, page_num, os.path.splitext(pdf_file)[0], min_area=500, max_area=40000)
-            all_colored_images.append(colored_image)  # Добавляем раскрашенное изображение в список
+            json_data = process_pdf_image(page_image_path, page_num, os.path.splitext(pdf_file)[0], min_area=MIN_AREA, max_area=MAX_AREA)
+            pdf_json_data.append(json_data)  # Сохраняем данные для каждой страницы
+
+        # После обработки всех страниц, сохраняем данные JSON для всего PDF
+        result_json_filename = os.path.join(OUTPUT_JSON_DIR, f"res_{os.path.splitext(pdf_file)[0]}.json")
+        with open(result_json_filename, 'w') as result_json_file:
+            json.dump(pdf_json_data, result_json_file, indent=4)
 
         # Отметка обработанного файла
         processed_files.append(pdf_file)
         print(f"Обработка завершена для файла {pdf_file}.")
-
-# После обработки всех файлов, визуализируем все раскрашенные изображения
-visualize_all_images(all_colored_images)
 
 print("Все файлы обработаны.")
